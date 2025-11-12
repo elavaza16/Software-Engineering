@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAASP Login & Registration</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+        .container-card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+<!-- Main Card Container -->
+<div class="container-card bg-white p-6 sm:p-10 rounded-xl w-full max-w-md">
+
+    <!-- Status Message Area -->
+    <div id="status-message" class="mb-4 hidden" role="alert">
+        <!-- Messages displayed here by JavaScript -->
+    </div>
+
+    <!-- Tab Controls -->
+    <div class="flex border-b mb-6">
+        <button id="tab-login" class="py-2 px-4 font-semibold text-gray-600 border-b-2 border-transparent hover:text-green-600 hover:border-green-600 focus:outline-none transition duration-150">Login</button>
+        <button id="tab-register" class="py-2 px-4 font-semibold text-green-600 border-b-2 border-green-600 focus:outline-none transition duration-150">Register</button>
+    </div>
+
+    <!-- Registration Form (Default View) -->
+    <div id="form-register">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Create a new account</h2>
+        <form action="auth_handler.php" method="POST" class="space-y-4">
+
+            <!-- Account Type (Role) -->
+            <div>
+                <label for="register_role" class="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <select id="register_role" name="role" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="customer">Customer</option>
+                    <option value="garage_owner">Garage Owner</option>
+                    <option value="vendor">Spare Part Vendor</option>
+                </select>
+            </div>
+
+            <!-- Business Name (Dynamically visible for Garage/Vendor) -->
+            <div id="business-name-group" class="hidden">
+                <label for="business_name" class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                <input type="text" id="business_name" name="business_name" placeholder="E.g., Nairobi AutoFix Centre"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Email Address -->
+            <div>
+                <label for="register_email" class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                <input type="email" id="register_email" name="email" required placeholder="you@example.com"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Password -->
+            <div>
+                <label for="register_password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="register_password" name="password" required placeholder="********"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Contact and City (Row Layout) -->
+            <div class="flex space-x-4">
+                <div class="flex-1">
+                    <label for="register_contact" class="block text-sm font-medium text-gray-700 mb-1">Contact (Phone)</label>
+                    <input type="tel" id="register_contact" name="contact" required placeholder="07XX-XXX-XXX"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                <div class="flex-1">
+                    <label for="register_city" class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" id="register_city" name="city" required placeholder="Nairobi"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+            </div>
+
+            <!-- District/Area -->
+            <div>
+                <label for="register_district" class="block text-sm font-medium text-gray-700 mb-1">District/Area</label>
+                <input type="text" id="register_district" name="district" required placeholder="CBD / Westlands / Mombasa Road"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Submission Button -->
+            <button type="submit" name="register_submit"
+                    class="w-full bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600 transition duration-200 shadow-md">
+                Register Account
+            </button>
+        </form>
+    </div>
+
+    <!-- Login Form (Hidden by Default) -->
+    <div id="form-login" class="hidden">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Log in to your account</h2>
+        <form action="auth_handler.php" method="POST" class="space-y-4">
+
+            <!-- Account Type (Role) for Login -->
+            <div>
+                <label for="login_role" class="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+                <select id="login_role" name="role" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="customer">Customer</option>
+                    <option value="garage_owner">Garage Owner</option>
+                    <option value="vendor">Spare Part Vendor</option>
+                </select>
+            </div>
+
+            <!-- Email Address -->
+            <div>
+                <label for="login_email" class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                <input type="email" id="login_email" name="email" required placeholder="you@example.com"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Password -->
+            <div>
+                <label for="login_password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="login_password" name="password" required placeholder="********"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+            </div>
+
+            <!-- Submission Button -->
+            <button type="submit" name="login_submit"
+                    class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-600 transition duration-200 shadow-md">
+                Log In
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const loginTab = document.getElementById('tab-login');
+        const registerTab = document.getElementById('tab-register');
+        const loginForm = document.getElementById('form-login');
+        const registerForm = document.getElementById('form-register');
+        const statusMessageDiv = document.getElementById('status-message');
+        const businessNameGroup = document.getElementById('business-name-group');
+        const registerRoleSelect = document.getElementById('register_role');
+
+        // --- Tab Switching Logic ---
+
+        function showTab(tabName) {
+            if (tabName === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                loginTab.classList.add('text-green-600', 'border-green-600');
+                loginTab.classList.remove('text-gray-600', 'border-transparent');
+                registerTab.classList.add('text-gray-600', 'border-transparent');
+                registerTab.classList.remove('text-green-600', 'border-green-600');
+            } else { // register
+                registerForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                registerTab.classList.add('text-green-600', 'border-green-600');
+                registerTab.classList.remove('text-gray-600', 'border-transparent');
+                loginTab.classList.add('text-gray-600', 'border-transparent');
+                loginTab.classList.remove('text-green-600', 'border-green-600');
+            }
+        }
+
+        loginTab.addEventListener('click', () => showTab('login'));
+        registerTab.addEventListener('click', () => showTab('register'));
+
+        // --- Dynamic Business Name Field Logic ---
+
+        function toggleBusinessNameField() {
+            const selectedRole = registerRoleSelect.value;
+            if (selectedRole === 'garage_owner' || selectedRole === 'vendor') {
+                businessNameGroup.classList.remove('hidden');
+                // Mark as required for handler validation
+                document.getElementById('business_name').setAttribute('required', 'required');
+            } else {
+                businessNameGroup.classList.add('hidden');
+                // Remove required attribute for customer
+                document.getElementById('business_name').removeAttribute('required');
+            }
+        }
+
+        // Listen for role changes on registration form
+        registerRoleSelect.addEventListener('change', toggleBusinessNameField);
+
+        // --- URL Parameter Handling (Displaying Messages) ---
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const status = urlParams.get('status');
+        const message = urlParams.get('message');
+        const role = urlParams.get('role'); // Role is used to select the form if necessary
+
+        if (status && message) {
+            // Show the message div
+            statusMessageDiv.classList.remove('hidden');
+            statusMessageDiv.textContent = message;
+
+            // Set styling based on status
+            if (status === 'success') {
+                statusMessageDiv.classList.add('bg-green-100', 'text-green-800', 'p-3', 'rounded-lg');
+                statusMessageDiv.classList.remove('bg-red-100', 'text-red-800');
+
+                // If login was successful, we might hide the form or show a welcome screen
+                // For now, we just redirect or show the message.
+
+                // After success, switch to the login tab to encourage login
+                if (message.includes("Registration successful")) {
+                    showTab('login');
+                } else if (message.includes("Login successful")) {
+                    // Successful login: you would typically redirect to the dashboard here,
+                    // but for demonstration, we show the message and leave on the login tab.
+                    showTab('login');
+                }
+
+            } else if (status === 'error') {
+                statusMessageDiv.classList.add('bg-red-100', 'text-red-800', 'p-3', 'rounded-lg');
+                statusMessageDiv.classList.remove('bg-green-100', 'text-green-800');
+
+                // If error, try to show the form the user was trying to submit
+                if (message.includes("Registration failed") || message.includes("All required registration fields")) {
+                    showTab('register');
+                } else {
+                    showTab('login');
+                }
+            }
+
+            // Remove parameters from URL bar to prevent message re-display on refresh
+            // history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // Initial setup: show the register form by default and check business name visibility
+        if (!status) {
+            showTab('register');
+        }
+        toggleBusinessNameField(); // Initial check for business name visibility
+    });
+</script>
+</body>
+</html>
