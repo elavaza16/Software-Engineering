@@ -34,7 +34,8 @@ function redirect_with_status($status, $message, $target_page = LOGIN_PAGE, $use
             'Garage' => GARAGE_DASHBOARD,
             'Vendor' => VENDOR_DASHBOARD,
         ];
-        $dashboard_file = $dashboard_files[$role] ?? LOGIN_PAGE;
+        // MODIFIED: Replaced $dashboard_files[$role] ?? LOGIN_PAGE with ternary check
+        $dashboard_file = isset($dashboard_files[$role]) ? $dashboard_files[$role] : LOGIN_PAGE;
 
         // 3. Redirect (no query string needed for success redirect as status is in session)
         header("Location: {$dashboard_file}");
@@ -64,13 +65,18 @@ $allowed_roles = [
 if (isset($_POST['register_submit'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
-    $role_input = $_POST['role'] ?? '';
+
+    // MODIFIED: Replaced $_POST['role'] ?? '' with ternary check
+    $role_input = isset($_POST['role']) ? $_POST['role'] : '';
     $contact = trim($_POST['contact']);
     $city = trim($_POST['city']);
     $district = trim($_POST['district']);
-    $business_name = trim($_POST['business_name'] ?? '');
 
-    $role_schema = $allowed_roles[$role_input] ?? null;
+    // MODIFIED: Replaced $_POST['business_name'] ?? '' with ternary check
+    $business_name = isset($_POST['business_name']) ? trim($_POST['business_name']) : '';
+
+    // MODIFIED: Replaced $allowed_roles[$role_input] ?? null with ternary check
+    $role_schema = isset($allowed_roles[$role_input]) ? $allowed_roles[$role_input] : null;
 
     // 1. Basic validation
     if (empty($email) || empty($password) || empty($role_schema) || empty($contact) || empty($city) || empty($district)) {
@@ -262,9 +268,12 @@ if (isset($_POST['register_submit'])) {
 else if (isset($_POST['login_submit'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
-    $submitted_role_input = $_POST['role'] ?? '';
 
-    $submitted_role_schema = $allowed_roles[$submitted_role_input] ?? null;
+    // MODIFIED: Replaced $_POST['role'] ?? '' with ternary check
+    $submitted_role_input = isset($_POST['role']) ? $_POST['role'] : '';
+
+    // MODIFIED: Replaced $allowed_roles[$submitted_role_input] ?? null with ternary check
+    $submitted_role_schema = isset($allowed_roles[$submitted_role_input]) ? $allowed_roles[$submitted_role_input] : null;
 
     if (empty($email) || empty($password) || empty($submitted_role_schema)) {
         redirect_with_status('error', 'All fields are required for login.');
