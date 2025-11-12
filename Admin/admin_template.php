@@ -1,0 +1,155 @@
+<?php
+// This file assumes session_start() and all necessary variables
+// ($current_view, etc.) are set BEFORE it is included.
+
+// Ensure these variables are set, providing fallbacks
+$current_view = $current_view ?? 'pending';
+$admin_name = $_SESSION['email'] ?? 'System Admin'; // Uses the email set in auth_handler
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAASP Admin - <?= ucwords(str_replace('_', ' ', $current_view)) ?></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Replicate the common CSS styles here for the layout and sidebar */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        /* Main Grid Layout for Desktop */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+            transition: grid-template-columns 0.3s ease-in-out;
+        }
+        .sidebar-collapsed .dashboard-grid {
+            grid-template-columns: 90px 1fr;
+        }
+
+        /* Styles for the Sidebar (Indigo Theme for Admin) */
+        .sidebar {
+            background-color: #1e293b; /* Slate-800 Dark Background */
+            color: #f8fafc;
+            padding: 2rem 0;
+            position: fixed;
+            height: 100%;
+            width: 240px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            transition: width 0.3s ease-in-out;
+            overflow-x: hidden;
+            z-index: 10;
+        }
+        .sidebar-collapsed .sidebar {
+            width: 90px;
+        }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            margin: 0.5rem 0;
+            transition: background-color 0.2s, color 0.2s, padding 0.3s;
+            border-left: 4px solid transparent;
+            white-space: nowrap;
+        }
+        .sidebar-collapsed .nav-link {
+            padding-left: 1.75rem;
+            padding-right: 1.75rem;
+            justify-content: center;
+        }
+        .sidebar-text {
+            transition: opacity 0.3s ease-in-out, width 0.3s ease-in-out;
+        }
+        .sidebar-collapsed .sidebar-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            display: none;
+        }
+        .nav-link:hover {
+            background-color: #334155; /* Slate-700 Hover */
+        }
+        /* Active color: Indigo-400 (#818cf8) */
+        .nav-active {
+            background-color: #334155;
+            border-left-color: #6366f1; /* Indigo-500 */
+            color: #a5b4fc; /* Indigo-300 */
+            font-weight: 600;
+        }
+        .nav-active .nav-icon {
+            color: #6366f1;
+        }
+
+        .main-content {
+            grid-column: 2 / 3;
+            padding: 2rem;
+            background-color: #f8fafc; /* Ensure background consistency */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .main-content {
+                grid-column: 1 / 2;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-grid" id="dashboardGrid">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="px-6 mb-8 flex items-center justify-between">
+            <div class="sidebar-text">
+                <h1 class="text-3xl font-extrabold text-indigo-400">CAASP Admin</h1>
+                <p class="text-xs text-gray-400 mt-1">System Control Panel</p>
+            </div>
+            <button onclick="toggleSidebar()" class="text-gray-400 hover:text-indigo-400 transition duration-200 p-2 rounded-full">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <nav>
+            <a href="admin_dashboard.php?view=pending" class="nav-link <?= $current_view === 'pending' ? 'nav-active' : 'text-gray-300' ?>">
+                <i data-lucide="shield-alert" class="w-5 h-5 mr-3 nav-icon"></i>
+                <span class="sidebar-text">Pending Approvals</span>
+            </a>
+            <a href="admin_dashboard.php?view=users" class="nav-link <?= $current_view === 'users' ? 'nav-active' : 'text-gray-300' ?>">
+                <i data-lucide="users" class="w-5 h-5 mr-3 nav-icon"></i>
+                <span class="sidebar-text">Manage Users</span>
+            </a>
+            <a href="admin_dashboard.php?view=listings" class="nav-link <?= $current_view === 'listings' ? 'nav-active' : 'text-gray-300' ?>">
+                <i data-lucide="database" class="w-5 h-5 mr-3 nav-icon"></i>
+                <span class="sidebar-text">Listings & Content</span>
+            </a>
+            <a href="admin_dashboard.php?view=reports" class="nav-link <?= $current_view === 'reports' ? 'nav-active' : 'text-gray-300' ?>">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 mr-3 nav-icon"></i>
+                <span class="sidebar-text">Reports</span>
+            </a>
+        </nav>
+
+        <div class="absolute bottom-6 left-0 right-0 px-6">
+            <div class="border-t border-gray-700 pt-4 mb-3 sidebar-text">
+                <p class="text-sm font-semibold text-gray-300"><?= htmlspecialchars($admin_name) ?></p>
+            </div>
+            <a href="../index.html" class="flex items-center text-red-400 hover:text-red-300 text-sm font-medium nav-link justify-start">
+                <i data-lucide="log-out" class="w-5 h-5 mr-2"></i>
+                <span class="sidebar-text">Log Out</span>
+            </a>
+        </div>
+    </aside>
+    <main class="main-content">
