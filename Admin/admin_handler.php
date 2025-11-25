@@ -201,7 +201,12 @@ elseif ($action === 'change_role') {
         if (mysqli_stmt_execute($stmt_update)) {
             mysqli_stmt_close($stmt_update);
             mysqli_close($db);
-            redirect_to_admin_dashboard('success', "User ID {$target_user_id} role changed to **{$new_role_name}**.", $redirect_view);
+
+            // 🚀 MODIFIED REDIRECT LOGIC FOR ROLE CHANGE
+            // We use a custom message that instructs the user to log in again.
+            $new_message = "Role for User ID {$target_user_id} changed to **{$new_role_name}**. The user will be required to log in again for the change to take full effect.";
+            redirect_to_admin_dashboard('success', $new_message, $redirect_view);
+
         } else {
             error_log("Role change failed: " . mysqli_error($db));
             mysqli_stmt_close($stmt_update);

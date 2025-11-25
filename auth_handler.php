@@ -4,21 +4,27 @@ session_start(); // 1. START THE PHP SESSION
 /**
  * CAASP Authentication Handler
  * Processes synchronous form submissions for registration and login,
- * ensuring compliance with the CAASP database schema.
+ * ensuring compliance with the CAASP database schema (Locations, Users, Roles, UserRole, Garages, Vendors tables).
+ *
+ * Merged features:
+ * - Admin role support for both login and dashboard.
+ * - Added 'is_approved' column logic: auto-approve Customers, mark Garages/Vendors as pending (0).
+ * - Login validation for 'is_approved' status (0 for pending, 2 for suspended/rejected).
+ * - Initial balance of KES 10,000.00 only for Customers upon registration.
  */
 
-// Include database configuration (connect_db() and session_start() are here)
+// Include database configuration
 require_once 'api_db_config.php';
 
-// Define the dashboard URLs (Using constants for clarity)
-const GARAGE_DASHBOARD = 'Garage_owner/garage_dashboard.php';
-const CUSTOMER_DASHBOARD = 'customer_dashboard.php'; // Assuming customer_dashboard.php is in the root
+// Define the dashboard URLs
+const GARAGE_DASHBOARD = 'Garage_Owner/garage_dashboard.php';
+const CUSTOMER_DASHBOARD = 'Customer/customer_dashboard.php'; // Corrected path to be relative to the root/customer folder
 const VENDOR_DASHBOARD = 'Vendor/vendor_dashboard.php';
 const ADMIN_DASHBOARD = 'Admin/admin_dashboard.php'; // Admin Dashboard URL added
 const LOGIN_PAGE = 'index.html';
 
 // Helper function to safely redirect
-// CORRECTED: Added $email parameter to the function signature
+// The $user_id, $role, and $email are used for successful LOGIN redirection
 function redirect_with_status($status, $message, $target_page = LOGIN_PAGE, $user_id = null, $role = null, $email = null) {
 
     // --- Successful LOGIN Redirection ---
@@ -27,7 +33,7 @@ function redirect_with_status($status, $message, $target_page = LOGIN_PAGE, $use
         // 1. Set Session Variables
         $_SESSION['user_id'] = $user_id;
         $_SESSION['role'] = $role;
-        if ($email) { // NEW: Store email if provided (for Admin template)
+        if ($email) { // Store email if provided (especially useful for Admin template)
             $_SESSION['email'] = $email;
         }
 
@@ -46,19 +52,19 @@ function redirect_with_status($status, $message, $target_page = LOGIN_PAGE, $use
     }
 
     // --- Error/Registration Success Redirection (Back to Login Page) ---
+    // Fallback for all errors and successful REGISTRATION (which redirects to login)
     $redirect_url = LOGIN_PAGE . "?status=" . urlencode($status) . "&message=" . urlencode($message);
 
     header("Location: " . $redirect_url);
     exit;
 }
 
-// Allowed roles for login (Converts form input to schema name)
-// This array is used for LOGIN ONLY. It MUST include 'admin'.
+// Allowed roles for all purposes (Registration and Login)
 $allowed_roles = [
     'customer' => 'Customer',
     'garage_owner' => 'Garage',
     'vendor' => 'Vendor',
-    'admin' => 'Admin'
+    'admin' => 'Admin' // Admin role is included for login/validation
 ];
 
 // --- Check for Registration Form Submission ---
@@ -90,7 +96,7 @@ if (isset($_POST['register_submit'])) {
         redirect_with_status('error', 'Business Name is required for ' . ucwords($role_schema) . ' registration.');
     }
 
-    // **USING connect_db() defined in api_db_config.php**
+    // *USING connect_db() defined in api_db_config.php*
     $db = connect_db();
     if (!$db) {
         redirect_with_status('error', 'Database connection failed. Check api_db_config.php.');
@@ -128,7 +134,7 @@ if (isset($_POST['register_submit'])) {
             throw new Exception('Internal server error (SQL preparation failed during email check).');
         }
 
-        // B. Insert into Locations table (Need placeholder latitude/longitude based on schema)
+        // B. Insert into Locations table
         $sql_location = "INSERT INTO Locations (city, district, latitude, longitude) VALUES (?, ?, ?, ?)";
         $default_lat = 0.00000000;
         $default_long = 0.00000000;
@@ -149,12 +155,12 @@ if (isset($_POST['register_submit'])) {
             throw new Exception('Internal server error (SQL preparation failed for location).');
         }
 
-        // C. Insert into Users table
+        // C. Insert into Users table - INCLUDING is_approved
         $sql_user = "INSERT INTO Users (email, password, contact, location_id, account_balance, is_approved) VALUES (?, ?, ?, ?, ?, ?)";
 
         $initial_balance = 0.00;
-        $is_approved = 0; // Default to pending approval for businesses, 1 for customers
-        // Only give customers the initial balance and auto-approve them
+        $is_approved = 0; // Default to pending approval for businesses
+        // Only give customers the initial balance and auto-approve them (is_approved = 1)
         if ($role_schema === 'Customer') {
             $initial_balance = 10000.00;
             $is_approved = 1;
@@ -291,7 +297,7 @@ else if (isset($_POST['login_submit'])) {
         redirect_with_status('error', 'Database connection failed. Check api_db_config.php.');
     }
 
-    // SQL: Fetch user details, role, and approval status (CRITICAL)
+    // SQL: Fetch user details, role, and approval status
     $sql = "SELECT 
                 U.user_id, 
                 U.password AS hashed_password, 
@@ -323,6 +329,14 @@ else if (isset($_POST['login_submit'])) {
                     }
 
                     // 2. Check Approval Status (Skip for Customer and Admin)
+                    // Check if account is suspended/rejected (is_approved = 2)
+                    if ($is_approved == 2) {
+                        mysqli_stmt_close($stmt);
+                        mysqli_close($db);
+                        redirect_with_status('error', 'Your account has been suspended by an administrator. Access denied.');
+                    }
+
+                    // Check if business account is pending approval (is_approved = 0)
                     if ($stored_role !== 'Customer' && $stored_role !== 'Admin' && $is_approved == 0) {
                         mysqli_stmt_close($stmt);
                         mysqli_close($db);
@@ -342,7 +356,7 @@ else if (isset($_POST['login_submit'])) {
                             if (mysqli_stmt_fetch($stmt_g)) {
                                 $_SESSION['garage_id'] = $garage_id;
                             } else {
-                                // Close DB and redirect on error
+                                // Error: User exists, role exists, but associated business entity is missing
                                 mysqli_stmt_close($stmt_g);
                                 mysqli_stmt_close($stmt);
                                 mysqli_close($db);
@@ -359,7 +373,7 @@ else if (isset($_POST['login_submit'])) {
                             if (mysqli_stmt_fetch($stmt_v)) {
                                 $_SESSION['vendor_id'] = $vendor_id;
                             } else {
-                                // Close DB and redirect on error
+                                // Error: User exists, role exists, but associated business entity is missing
                                 mysqli_stmt_close($stmt_v);
                                 mysqli_stmt_close($stmt);
                                 mysqli_close($db);
@@ -374,7 +388,7 @@ else if (isset($_POST['login_submit'])) {
                     mysqli_close($db);
 
                     // 5. Redirect to the determined Dashboard using the central function
-                    // FIX APPLIED: Pass $email to store it in session for Admin template.
+                    // Pass $email to store it in session
                     redirect_with_status('success', 'Login successful!', LOGIN_PAGE, $user_id, $stored_role, $email);
 
                 }
@@ -387,6 +401,7 @@ else if (isset($_POST['login_submit'])) {
         } else {
             mysqli_stmt_close($stmt);
             mysqli_close($db);
+            // Log real error here: mysqli_error($db)
             redirect_with_status('error', 'Login failed due to a database query error.');
         }
     } else {

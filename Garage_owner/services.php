@@ -47,8 +47,12 @@ if (!$conn) {
                 $service_price = floatval($_POST['service_price']);
                 $stmt->bind_param("sdi", $service_name, $service_price, $current_garage_id);
                 if ($stmt->execute()) {
-                    $message = '<div class="alert alert-success">Service added successfully!</div>';
-                    $action_completed = true;
+                    // FIX START (PRG pattern): Redirect after successful ADD
+                    $stmt->close();
+                    $conn->close();
+                    header("Location: services.php?status=success&message=" . urlencode("Service added successfully!"));
+                    exit();
+                    // FIX END
                 } else {
                     $message = '<div class="alert alert-danger">Error adding service: ' . $conn->error . '</div>';
                 }
@@ -65,8 +69,12 @@ if (!$conn) {
                 $service_price = floatval($_POST['service_price']);
                 $stmt->bind_param("sdis", $service_name, $service_price, $service_id, $current_garage_id);
                 if ($stmt->execute()) {
-                    $message = '<div class="alert alert-success">Service updated successfully!</div>';
-                    $action_completed = true;
+                    // FIX START (PRG pattern): Redirect after successful UPDATE
+                    $stmt->close();
+                    $conn->close();
+                    header("Location: services.php?status=success&message=" . urlencode("Service updated successfully!"));
+                    exit();
+                    // FIX END
                 } else {
                     $message = '<div class="alert alert-danger">Error updating service: ' . $conn->error . '</div>';
                 }
@@ -79,20 +87,45 @@ if (!$conn) {
         // Handle Delete
         if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
             $service_id = intval($_GET['id']);
+            $deleted_service_name = 'Service ID ' . $service_id; // Default name
 
-            // Prepared statement for safety
-            $sql = "DELETE FROM Services WHERE service_id=? AND garage_id=?";
-            if ($stmt = $conn->prepare($sql)) {
+            // FIX START: 1. Fetch the name before deletion
+            $sql_fetch_name = "SELECT service_name FROM Services WHERE service_id = ? AND garage_id = ?";
+            if ($stmt_fetch = $conn->prepare($sql_fetch_name)) {
+                $stmt_fetch->bind_param("ii", $service_id, $current_garage_id);
+                $stmt_fetch->execute();
+                $stmt_fetch->bind_result($fetched_name);
+                if ($stmt_fetch->fetch()) {
+                    $deleted_service_name = htmlspecialchars($fetched_name);
+                }
+                $stmt_fetch->close();
+            }
+            // FIX END
+
+            // Prepared statement for safety: Delete the row
+            $sql_delete = "DELETE FROM Services WHERE service_id=? AND garage_id=?";
+            if ($stmt = $conn->prepare($sql_delete)) {
                 $stmt->bind_param("ii", $service_id, $current_garage_id);
 
                 if ($stmt->execute()) {
-                    $message = '<div class="alert alert-warning">Service deleted successfully!</div>';
-                    $action_completed = true;
+                    // FIX START: Redirect for successful DELETE, including the item name
+                    $stmt->close();
+                    $conn->close(); // Must close connection before redirect
+                    $success_message = "Service '{$deleted_service_name}' deleted successfully!";
+                    header("Location: services.php?status=warning&message=" . urlencode($success_message));
+                    exit();
+                    // FIX END
                 } else {
                     $message = '<div class="alert alert-danger">Error deleting service: ' . $conn->error . '</div>';
                 }
                 $stmt->close();
             }
+        }
+
+        // Handle URL message parameter from successful actions
+        if (isset($_GET['message']) && isset($_GET['status'])) {
+            $status_class = ($_GET['status'] === 'warning') ? 'alert-warning' : 'alert-success';
+            $message = '<div class="alert ' . $status_class . '">' . htmlspecialchars($_GET['message']) . '</div>';
         }
     }
 

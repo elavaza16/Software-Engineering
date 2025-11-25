@@ -69,7 +69,9 @@ if (!$conn) {
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $part_name = $_POST['part_name'] ?? '';
         $part_description = $_POST['description'] ?? '';
-        $part_price = floatval($_POST['part_price'] ?? 0);
+
+        // FIX APPLIED HERE: Get price as a string, not a float, for precision
+        $part_price = $_POST['part_price'] ?? '0.00';
 
         $image_path_update = DEFAULT_PART_IMAGE;
 
@@ -78,13 +80,13 @@ if (!$conn) {
             $sql = "INSERT INTO Parts (part_name, description, part_price, vendor_id, part_image_path) VALUES (?, ?, ?, ?, ?)";
             if ($stmt = $conn->prepare($sql)) {
 
-                // Use the default image path for the first insert
-                $stmt->bind_param("ssdis",
-                    $part_name,
-                    $part_description,
-                    $part_price,
-                    $current_vendor_id,
-                    $image_path_update
+                // FIX APPLIED HERE: Change bind type for part_price from 'd' to 's'
+                $stmt->bind_param("sssis", // s(name), s(desc), s(price), i(vendor_id), s(path)
+                        $part_name,
+                        $part_description,
+                        $part_price, // Bound as string
+                        $current_vendor_id,
+                        $image_path_update
                 );
 
                 if ($stmt->execute()) {
@@ -104,7 +106,11 @@ if (!$conn) {
                             $stmt_path->execute();
                             $stmt_path->close();
                         }
-                        $message = '<div class="alert alert-success">Part added successfully!</div>';
+                        // FIX START (PRG pattern): Redirect after successful ADD
+                        $conn->close();
+                        header("Location: parts.php?status=success&message=" . urlencode("Part added successfully!"));
+                        exit();
+                        // FIX END
                     }
                     $action_completed = true;
                 } else {
@@ -130,20 +136,24 @@ if (!$conn) {
             // 2. Update all text fields and the image path
             $sql = "UPDATE Parts SET part_name=?, description=?, part_price=?, part_image_path=? WHERE part_id=? AND vendor_id=?";
             if ($stmt = $conn->prepare($sql)) {
-                $stmt->bind_param("ssdsii",
-                    $part_name,
-                    $part_description,
-                    $part_price,
-                    $image_path_final, // Updated path
-                    $part_id,
-                    $current_vendor_id
+                // FIX APPLIED HERE: Change bind type for part_price from 'd' to 's'
+                $stmt->bind_param("ssssii", // s(name), s(desc), s(price), s(path), i(id), i(vendor_id)
+                        $part_name,
+                        $part_description,
+                        $part_price, // Bound as string
+                        $image_path_final, // Updated path
+                        $part_id,
+                        $current_vendor_id
                 );
 
                 if ($stmt->execute()) {
-                    if (strpos($message, 'ERROR') === false) {
-                        $message = '<div class="alert alert-success">Part updated successfully!</div>';
-                    }
-                    $action_completed = true;
+                    // FIX START (PRG pattern): Redirect after successful UPDATE
+                    $stmt->close();
+                    $conn->close();
+                    $message_final = urlencode(strpos($message, 'ERROR') === false ? 'Part updated successfully!' : $message);
+                    header("Location: parts.php?status=success&message=" . $message_final);
+                    exit();
+                    // FIX END
                 } else {
                     $message .= '<div class="alert alert-danger">Database error updating part: ' . $conn->error . '</div>';
                 }
@@ -156,35 +166,50 @@ if (!$conn) {
         // Handle Delete
         if ($action == 'delete' && isset($_GET['id'])) {
             $part_id = intval($_GET['id']);
+            $deleted_part_name = 'Part ID ' . $part_id; // Default name
 
-            // First, fetch the image path to delete the file
-            $sql_fetch_path = "SELECT part_image_path FROM Parts WHERE part_id = ? AND vendor_id = ?";
-            if ($stmt_path = $conn->prepare($sql_fetch_path)) {
-                $stmt_path->bind_param("ii", $part_id, $current_vendor_id);
-                $stmt_path->execute();
-                $stmt_path->bind_result($path_to_delete);
-                $stmt_path->fetch();
-                $stmt_path->close();
-
-                // Delete the file if it exists and is not the placeholder
-                if ($path_to_delete && $path_to_delete !== DEFAULT_PART_IMAGE && file_exists($path_to_delete)) {
-                    unlink($path_to_delete);
+            // FIX START: 1. Fetch the name and path before deletion
+            $sql_fetch_name = "SELECT part_name, part_image_path FROM Parts WHERE part_id = ? AND vendor_id = ?";
+            if ($stmt_fetch = $conn->prepare($sql_fetch_name)) {
+                $stmt_fetch->bind_param("ii", $part_id, $current_vendor_id);
+                $stmt_fetch->execute();
+                $stmt_fetch->bind_result($fetched_name, $path_to_delete);
+                if ($stmt_fetch->fetch()) {
+                    $deleted_part_name = htmlspecialchars($fetched_name);
                 }
+                $stmt_fetch->close();
+            }
+            // FIX END
+
+            // Delete the file if it exists and is not the placeholder
+            if ($path_to_delete && $path_to_delete !== DEFAULT_PART_IMAGE && file_exists($path_to_delete)) {
+                unlink($path_to_delete);
             }
 
             // Prepared statement for safety: Delete the row
-            $sql = "DELETE FROM Parts WHERE part_id=? AND vendor_id=?";
-            if ($stmt = $conn->prepare($sql)) {
+            $sql_delete = "DELETE FROM Parts WHERE part_id=? AND vendor_id=?";
+            if ($stmt = $conn->prepare($sql_delete)) {
                 $stmt->bind_param("ii", $part_id, $current_vendor_id);
 
                 if ($stmt->execute()) {
-                    $message = '<div class="alert alert-warning">Part deleted successfully!</div>';
-                    $action_completed = true;
+                    // FIX START: Redirect for successful DELETE, including the item name
+                    $stmt->close();
+                    $conn->close(); // Must close connection before redirect
+                    $success_message = "Part '{$deleted_part_name}' deleted successfully!";
+                    header("Location: parts.php?status=warning&message=" . urlencode($success_message));
+                    exit();
+                    // FIX END
                 } else {
                     $message = '<div class="alert alert-danger">Error deleting part: ' . $conn->error . '</div>';
                 }
                 $stmt->close();
             }
+        }
+
+        // Handle URL message parameter from successful actions
+        if (isset($_GET['message']) && isset($_GET['status'])) {
+            $status_class = ($_GET['status'] === 'warning') ? 'alert-warning' : 'alert-success';
+            $message = '<div class="alert ' . $status_class . '">' . htmlspecialchars($_GET['message']) . '</div>';
         }
     }
 

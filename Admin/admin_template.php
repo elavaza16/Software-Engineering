@@ -136,10 +136,6 @@ $admin_name = $_SESSION['email'] ?? 'System Admin'; // Uses the email set in aut
                 <i data-lucide="database" class="w-5 h-5 mr-3 nav-icon"></i>
                 <span class="sidebar-text">Listings & Content</span>
             </a>
-            <a href="admin_dashboard.php?view=reports" class="nav-link <?= $current_view === 'reports' ? 'nav-active' : 'text-gray-300' ?>">
-                <i data-lucide="bar-chart-3" class="w-5 h-5 mr-3 nav-icon"></i>
-                <span class="sidebar-text">Reports</span>
-            </a>
         </nav>
 
         <div class="absolute bottom-6 left-0 right-0 px-6">

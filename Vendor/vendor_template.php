@@ -128,7 +128,7 @@ $vendor_name = $vendor_name ?? 'Vendor Portal';
     <aside class="sidebar" id="sidebar">
         <div class="px-6 mb-8 flex items-center justify-between">
             <div class="sidebar-text">
-                <h1 class="text-3xl font-extrabold text-orange-500">PartStock</h1>
+                <h1 class="text-3xl font-extrabold text-orange-500">StockHub</h1>
                 <p class="text-xs text-gray-400 mt-1">Vendor Portal</p>
             </div>
             <button onclick="toggleSidebar()" class="text-gray-400 hover:text-orange-500 transition duration-200 p-2 rounded-full">

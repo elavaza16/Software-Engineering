@@ -373,15 +373,6 @@ require 'admin_template.php';
                 </div>
             </section>
 
-        <?php elseif ($current_view === 'reports'): ?>
-            <div class="p-6 bg-indigo-50 border border-indigo-300 text-indigo-800 rounded-xl shadow-md">
-                <h3 class="font-bold text-2xl mb-3 flex items-center">
-                    <i data-lucide="bar-chart-3" class="w-6 h-6 mr-3"></i>
-                    System Reports (To Be Implemented)
-                </h3>
-                <p>This section would provide key business intelligence reports like **Top-Rated Garages**, **Most Popular Services**, and overall transaction volume analysis.</p>
-            </div>
-
         <?php endif; ?>
 
     </div>
